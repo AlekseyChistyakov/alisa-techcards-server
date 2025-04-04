@@ -5,7 +5,7 @@ const axios = require("axios");
 const app = express();
 app.use(bodyParser.json());
 
-// ✅ Обработка GET-запроса на корень — нужно для проверки Яндексом
+// ✅ Обработка GET-запроса на корень — важно для модерации Алисы
 app.get("/", (req, res) => {
   res.json({
     response: {
@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// 🔗 Твой Google Apps Script API
+// 🔗 Google Apps Script API
 const GOOGLE_SCRIPT_API = "https://script.google.com/macros/s/AKfycbzEh_tNMGWzdc9T263bqJMzyho4JbZfe1iFX6Ta8loxVlc5gtH_iIEUrJIwMp8BbDJ7/exec";
 
 app.post("/", async (req, res) => {
@@ -71,13 +71,11 @@ app.post("/", async (req, res) => {
     });
   }
 
-  // Поиск блюда по API
+  // Поиск блюда
   try {
     const result = await axios.get(GOOGLE_SCRIPT_API, {
       params: { dish: userCommand }
     });
-
-    console.log("Ответ Google Script:", result.data); // 🐞 Логируем ответ
 
     if (result.data.error) {
       return res.json({
@@ -93,20 +91,23 @@ app.post("/", async (req, res) => {
     const { блюдо, ингредиенты, рецепт } = result.data;
     const intro = `${блюдо}. В составе: ${ингредиенты.map(i => i["продукт"]).slice(0, 3).join(", ")}, и другие.`;
 
+    // Ограничение текста по длине для Алисы
+    const maxLength = 400;
+    const shortRecipe = рецепт.length > maxLength ? рецепт.slice(0, maxLength - 10) + "..." : рецепт;
+
     return res.json({
       response: {
-        text: `${блюдо}. ${рецепт}`,
-        tts: `${intro} ${рецепт}`,
+        text: `${блюдо}. ${shortRecipe}`,
+        tts: `${intro} ${shortRecipe}`,
         end_session: false
       },
       version: "1.0"
     });
   } catch (error) {
-    console.error("Ошибка при запросе к Google Script:", error); // 🐞 Логируем ошибку
     return res.json({
       response: {
-        text: "Не удалось получить рецепт. Попробуйте позже.",
-        tts: "Не удалось получить рецепт. Попробуйте позже.",
+        text: "Не удалось получить рецепт. Проверьте соединение.",
+        tts: "Не удалось получить рецепт. Проверьте соединение.",
         end_session: false
       },
       version: "1.0"
@@ -114,6 +115,5 @@ app.post("/", async (req, res) => {
   }
 });
 
-// 🚀 Запуск
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log("✅ Алиса-сервер запущен на порту", port));
+app.listen(port, () => console.log(`✅ Алиса-сервер запущен на порту ${port}`));
